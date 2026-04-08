@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"c:/Users/aryan/Documents/Kiro/visualization tool/\"*.bat)",
+      "Bash(python3 -c \"import sys,json; files=sys.stdin.read\\(\\).splitlines\\(\\); print\\(json.dumps\\(files, indent=2\\)\\)\")",
+      "Bash(node -e ':*)"
+    ]
+  }
+}

@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Astro Analytics — Universal Spatial Event Visualization</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+  <link rel="stylesheet" href="css/app.css?v=18" />
+
+  <!-- DuckDB-WASM loader -->
+  <script type="module">
+    try {
+      const mod = await import('https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm/+esm');
+      window.duckdb = mod;
+      console.log('[Astro] DuckDB-WASM loaded');
+    } catch (e) {
+      console.error('[Astro] DuckDB ESM failed', e);
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/dist/duckdb-browser.js';
+        s.onload = () => { window.duckdb = window.duckdb || {}; res(); };
+        s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
+    window._duckdbReady = true;
+    document.dispatchEvent(new Event('duckdb-ready'));
+  </script>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══════════════════════ TOP BAR ═════════════════��════════ -->
+  <header id="top-bar">
+    <div class="logo">
+      <div class="logo-icon"><i class="ti ti-rocket"></i></div>
+      <span class="logo-text">Astro Analytics</span>
+    </div>
+
+    <div class="header-controls">
+      <div class="header-control-group">
+        <span class="top-label">Map</span>
+        <select id="map-selector" class="top-select" style="min-width:160px">
+          <option value="">— map —</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="top-spacer"></div>
+
+    <div class="top-actions">
+      <button id="btn-save-view-top" class="btn btn-secondary btn-sm">
+        <i class="ti ti-bookmark-plus"></i> Save View
+      </button>
+      <button id="btn-reset-view-top" class="btn btn-ghost btn-sm" title="Reset pan &amp; zoom">
+        <i class="ti ti-refresh"></i>
+      </button>
+      <button id="btn-topbar-collapse" class="btn btn-ghost btn-sm" title="Collapse top bar">
+        <i class="ti ti-layout-navbar-collapse"></i>
+      </button>
+    </div>
+  </header>
+  <!-- Collapsed pill (shown when top bar is collapsed) -->
+  <div id="topbar-pill" style="display:none; position:absolute; top:10px; left:10px; z-index:101">
+    <button id="btn-topbar-expand" class="topbar-pill-btn" title="Expand top bar">
+      <div class="logo-icon" style="width:28px;height:28px;font-size:14px"><i class="ti ti-rocket"></i></div>
+      <i class="ti ti-layout-navbar" style="font-size:14px;color:var(--text-3)"></i>
+    </button>
+  </div>
+
+  <!-- ══════════════════════ MAIN AREA ════════════════════════ -->
+  <div id="main-area">
+
+    <!-- LEFT: Visualization Canvas -->
+    <div id="canvas-panel">
+      <canvas id="minimap-canvas"></canvas>
+
+      <!-- Floating Playback Dock -->
+      <div id="playback-bar">
+        <div class="playback-controls">
+          <button id="btn-stop"     class="pb-btn" title="Stop / Reset"><i class="ti ti-player-stop"></i></button>
+          <button id="btn-step-bwd" class="pb-btn" title="Step −500ms"><i class="ti ti-player-track-prev"></i></button>
+          <button id="btn-play"     class="pb-btn pb-btn-play" title="Play"><i class="ti ti-player-play"></i></button>
+          <button id="btn-pause"    class="pb-btn" title="Pause" style="display:none"><i class="ti ti-player-pause"></i></button>
+          <button id="btn-step-fwd" class="pb-btn" title="Step +500ms"><i class="ti ti-player-track-next"></i></button>
+        </div>
+
+        <div class="scrubber-area">
+          <span id="playback-current">0:00</span>
+          <input type="range" id="timeline-scrubber" min="0" max="1000" value="0" />
+          <span id="playback-duration">0:00</span>
+        </div>
+
+        <div class="speed-group">
+          <button class="speed-btn" data-speed="0.5">0.5×</button>
+          <button class="speed-btn active" data-speed="1">1×</button>
+          <button class="speed-btn" data-speed="2">2×</button>
+          <button class="speed-btn" data-speed="4">4×</button>
+          <button class="speed-btn" data-speed="8">8×</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Floating Control Panel -->
+    <div id="right-panel">
+
+      <!-- ── Tab Bar ── -->
+      <div id="tab-bar">
+        <button class="tab-btn active" data-tab="assistant" title="Astro AI">
+          <i class="ti ti-sparkles"></i><span class="tab-label">AI</span>
+        </button>
+        <button class="tab-btn" data-tab="data" title="Datasets">
+          <i class="ti ti-database"></i><span class="tab-label">Data</span>
+        </button>
+        <button class="tab-btn" data-tab="rules" title="Rules &amp; Layers">
+          <i class="ti ti-color-swatch"></i><span class="tab-label">Rules</span>
+        </button>
+        <button class="tab-btn" data-tab="maps" title="Maps &amp; Calibration">
+          <i class="ti ti-photo"></i><span class="tab-label">Maps</span>
+        </button>
+        <button class="tab-btn" data-tab="views" title="Saved Views">
+          <i class="ti ti-bookmark"></i><span class="tab-label">Views</span>
+        </button>
+      </div>
+
+      <!-- ── Tab Contents ── -->
+      <div id="tab-panel">
+
+        <!-- ════════════ 1. AI ASSISTANT ════════════ -->
+        <div id="tab-assistant" class="tab-content active">
+          <div id="chat-messages">
+            <div class="astro-welcome" id="astro-welcome-panel">
+              <div class="astro-avatar"><i class="ti ti-sparkles"></i></div>
+              <h3>Astro AI Assistant</h3>
+              <p id="astro-welcome-text">Ask me to show paths, toggle layers, filter players, or play the timeline.</p>
+              <div id="astro-welcome-actions" class="astro-welcome-actions">
+                <button id="btn-chat-load-sample" class="btn btn-primary btn-sm">
+                  <i class="ti ti-database-import"></i> Load Sample Data
+                </button>
+                <button id="btn-chat-upload" class="btn btn-secondary btn-sm">
+                  <i class="ti ti-upload"></i> Upload Data
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="chat-footer">
+            <div class="suggestions-bar">
+              <button class="suggestion-chip">Show paths</button>
+              <button class="suggestion-chip">Hide points</button>
+              <button class="suggestion-chip">Show heatmap</button>
+              <button class="suggestion-chip">Play timeline</button>
+              <button class="suggestion-chip">Reset view</button>
+            </div>
+            <div class="chat-input-row">
+              <textarea id="chat-input" placeholder="Ask Astro anything…" rows="1"></textarea>
+              <button id="chat-send" title="Send"><i class="ti ti-send"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ════════════ 2. DATA ════════════ -->
+        <div id="tab-data" class="tab-content">
+          <div id="sub-data-upload">
+
+            <!-- Active dataset -->
+            <div class="card">
+              <div class="card-section-title">Active Dataset</div>
+              <select id="dataset-selector" class="filter-select">
+                <option value="">— select active dataset —</option>
+              </select>
+            </div>
+
+            <!-- Sample data -->
+            <div class="card">
+              <div class="card-section-title">Sample Data</div>
+              <div style="font-size:12px;color:var(--text-2);margin-bottom:8px">Try the app instantly with a ready-to-go example dataset — no file needed.</div>
+              <button id="btn-load-sample" class="btn btn-secondary btn-sm" style="width:100%">
+                <i class="ti ti-database-import"></i> Load Sample Data
+              </button>
+            </div>
+
+            <!-- Upload -->
+            <div class="card">
+              <div class="card-section-title">Upload</div>
+              <div class="upload-area" style="margin:0;border-radius:var(--radius-sm)">
+                <div class="upload-icon"><i class="ti ti-cloud-upload"></i></div>
+                <div class="upload-title">Upload Dataset</div>
+                <div class="upload-sub">Single file or entire folder</div>
+                <div class="upload-btns">
+                  <button id="btn-upload-csv" class="btn btn-primary btn-sm">
+                    <i class="ti ti-file-type-csv"></i> CSV file
+                  </button>
+                  <button id="btn-upload-parquet" class="btn btn-secondary btn-sm">
+                    <i class="ti ti-file-arrow-right"></i> Parquet file
+                  </button>
+                  <button id="btn-upload-folder" class="btn btn-secondary btn-sm">
+                    <i class="ti ti-folder-open"></i> Folder
+                  </button>
+                </div>
+              </div>
+              <input type="file" id="input-csv"     accept=".csv"                    multiple style="display:none" />
+              <input type="file" id="input-parquet" accept=".parquet,.nakama-0,*"              style="display:none" />
+              <input type="file" id="input-folder"  accept=".parquet,.nakama-0,.csv,*" multiple webkitdirectory style="display:none" />
+              <div id="progress-area" style="margin-top:8px">
+                <div class="progress-track"><div id="progress-bar"></div></div>
+                <div id="progress-label">Loading…</div>
+              </div>
+            </div>
+
+            <!-- Datasets list -->
+            <div class="card">
+              <div class="card-section-title">Datasets</div>
+              <div id="dataset-list">
+                <p class="empty-hint">No datasets loaded yet.<br>Upload a CSV or Parquet file above.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ════════════ 3. RULES (Layout + Event Rules sub-tabs) ════════════ -->
+        <div id="tab-rules" class="tab-content">
+          <!-- Sub-tab bar -->
+          <div class="sub-tab-bar">
+            <button class="sub-tab-btn active" data-subtab="rules-layout">
+              <i class="ti ti-layers-intersect"></i> Layout
+            </button>
+            <button class="sub-tab-btn" data-subtab="rules-events">
+              <i class="ti ti-color-swatch"></i> Event Rules
+            </button>
+          </div>
+
+          <!-- Sub-tab: Layout (layers + filters + settings) -->
+          <div id="sub-rules-layout" class="sub-tab-content active">
+            <div class="layer-group card">
+              <div class="card-section-title">Layers</div>
+              <label class="layer-item">
+                <span class="layer-label"><span class="layer-dot" style="background:#06b6d4"></span>Paths</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="layer-toggle" data-layer="paths" checked>
+                  <span class="toggle-track"></span>
+                </label>
+              </label>
+              <label class="layer-item">
+                <span class="layer-label"><span class="layer-dot" style="background:#ef4444"></span>Points</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="layer-toggle" data-layer="points" checked>
+                  <span class="toggle-track"></span>
+                </label>
+              </label>
+              <label class="layer-item">
+                <span class="layer-label"><span class="layer-dot dot-traffic"></span>Heatmap</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="layer-toggle" data-layer="heatmap">
+                  <span class="toggle-track"></span>
+                </label>
+              </label>
+            </div>
+
+            <div id="event-type-filter-group" class="card">
+              <div class="card-section-title">Event Types</div>
+              <p style="color:var(--text-4);font-size:11px">Process a dataset to see event types.</p>
+            </div>
+
+            <div class="card">
+              <div class="card-section-title">Map ID Filter</div>
+              <div id="map-id-filter-group" style="display:none">
+                <div id="map-mismatch-warning" class="map-mismatch-warning" style="display:none">
+                  <i class="ti ti-alert-triangle"></i>
+                  <span id="map-mismatch-msg">Data contains events from a different map.</span>
+                </div>
+                <!-- Custom multi-select dropdown -->
+                <div class="mapid-dropdown" id="mapid-dropdown">
+                  <button class="mapid-toggle" id="mapid-toggle" type="button">
+                    <span id="mapid-toggle-label">All maps</span>
+                    <i class="ti ti-chevron-down mapid-chevron"></i>
+                  </button>
+                  <div class="mapid-panel" id="mapid-panel">
+                    <div id="mapid-options"></div>
+                    <div class="mapid-panel-footer">
+                      <button class="btn btn-ghost btn-sm" id="mapid-clear-btn" type="button">
+                        <i class="ti ti-x"></i> Clear selection
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
+                  <span style="color:var(--text-4);font-size:10px">Default: current map only. Select others to override.</span>
+                  <button id="btn-default-mapid" class="btn btn-ghost btn-sm" type="button" style="font-size:10px;padding:2px 8px;height:24px">
+                    <i class="ti ti-refresh"></i> Default
+                  </button>
+                </div>
+              </div>
+              <div id="map-id-filter-empty" class="empty-hint" style="font-size:11px;padding:4px 0;display:none">Dataset has no map_id field.</div>
+              <p id="map-id-filter-placeholder" style="color:var(--text-4);font-size:11px;margin:0">Process a dataset to see map filters.</p>
+            </div>
+
+            <div class="card">
+              <div class="card-section-title">Date Range</div>
+              <div class="date-range-row">
+                <label class="date-range-label">From</label>
+                <input type="datetime-local" id="filter-date-from" class="date-input">
+              </div>
+              <div class="date-range-row" style="margin-top:6px">
+                <label class="date-range-label">To</label>
+                <input type="datetime-local" id="filter-date-to" class="date-input">
+              </div>
+              <div id="date-range-hint" style="font-size:10px;color:var(--text-4);margin-top:6px;display:none"></div>
+              <div style="display:flex;justify-content:flex-end;margin-top:8px">
+                <button id="btn-clear-date-range" class="btn btn-ghost btn-sm" type="button" style="font-size:10px;padding:2px 8px;height:24px">
+                  <i class="ti ti-x"></i> Clear filter
+                </button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-section-title">Session Filter</div>
+              <select id="filter-session-select" class="filter-select" multiple size="4">
+                <option disabled>— no sessions —</option>
+              </select>
+              <div style="color:var(--text-4);font-size:10px;margin-top:4px">Hold Ctrl/Cmd to select multiple</div>
+              <div style="display:flex;gap:8px;margin-top:10px">
+                <button id="btn-apply-viz-filters" class="btn btn-primary" style="flex:1">
+                  <i class="ti ti-check"></i> Apply
+                </button>
+                <button id="btn-clear-session-filter" class="btn btn-secondary">
+                  <i class="ti ti-x"></i> Clear
+                </button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-section-title">Rendering</div>
+              <div class="setting-row">
+                <span class="setting-label">Path Thickness</span>
+                <input type="range" id="path-thickness" min="1" max="5" value="2" step="0.5">
+                <span class="setting-val" id="path-thickness-val">2px</span>
+              </div>
+              <div class="setting-row">
+                <span class="setting-label">Heatmap Intensity</span>
+                <input type="range" id="heatmap-intensity" min="20" max="100" value="70">
+                <span class="setting-val" id="heatmap-intensity-val">70%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sub-tab: Event Rules -->
+          <div id="sub-rules-events" class="sub-tab-content">
+            <p id="event-rules-empty" class="empty-hint">Process a dataset first to see event types.</p>
+            <div id="event-rules-list" style="display:none"></div>
+          </div>
+        </div>
+
+        <!-- ════════════ 4. MAPS (with inline calibration) ════════════ -->
+        <div id="tab-maps" class="tab-content">
+          <div class="section-title">Upload Map Image</div>
+          <div class="upload-area upload-area-compact">
+            <button id="btn-upload-map" class="btn btn-primary btn-sm">
+              <i class="ti ti-folder-open"></i> Choose Image
+            </button>
+            <span class="upload-sub" style="margin:0">PNG, JPG, or any image</span>
+          </div>
+          <input type="file" id="input-map-image" accept="image/*" style="display:none" />
+
+          <div class="section-title">Maps</div>
+          <div id="map-list">
+            <p class="empty-hint">No maps loaded yet.</p>
+          </div>
+
+          <!-- Calibration point input panel (shared, floated below active map card) -->
+          <div id="calib-point-input" class="calib-point-input" style="display:none">
+            <div class="calib-point-label">
+              <i class="ti ti-map-pin"></i>
+              <span id="calib-point-px">Click captured</span>
+            </div>
+            <div class="calib-coords">
+              <input type="number" id="calib-wx" class="calib-input" placeholder="World X" step="any">
+              <input type="number" id="calib-wy" class="calib-input" placeholder="World Y" step="any">
+            </div>
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <button id="btn-add-refpoint" class="btn btn-primary btn-sm" style="flex:1">
+                <i class="ti ti-check"></i> Add Point
+              </button>
+              <button id="btn-cancel-refpoint" class="btn btn-secondary btn-sm">
+                <i class="ti ti-x"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ════════════ 5. SAVED VIEWS ════════════ -->
+        <div id="tab-views" class="tab-content">
+          <div class="views-header">
+            <div class="section-title" style="margin:0">Saved Views</div>
+            <button id="btn-save-view" class="btn btn-primary btn-sm">
+              <i class="ti ti-plus"></i> Save View
+            </button>
+          </div>
+          <div id="saved-views-list">
+            <p class="empty-hint">No saved views yet.<br>Configure your setup, then save.</p>
+          </div>
+        </div>
+
+      </div><!-- /tab-panel -->
+    </div><!-- /right-panel -->
+  </div><!-- /main-area -->
+
+</div><!-- /app -->
+
+<!-- JS modules — load order matters -->
+<script src="js/filters.js?v=18"></script>
+<script src="js/heatmap.js?v=10"></script>
+<script src="js/renderer.js?v=12"></script>
+<script src="js/playback.js?v=17"></script>
+<script src="js/assistant.js?v=10"></script>
+<script src="js/etl.js?v=16"></script>
+<script src="js/datasets.js?v=10"></script>
+<script src="js/calibration.js?v=10"></script>
+<script src="js/event-rules.js?v=10"></script>
+<script src="js/maps.js?v=10"></script>
+<script src="js/app.js?v=18"></script>
+</body>
+</html>
