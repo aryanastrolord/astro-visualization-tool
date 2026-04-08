@@ -322,8 +322,13 @@ window.App = (() => {
     const mapListEl = document.getElementById('map-list');
     if (mapListEl) mapListEl.innerHTML = '<p class="empty-hint"><i class="ti ti-loader-2 spin" style="margin-right:4px"></i>Loading preset maps…</p>';
 
+    const overlay = document.getElementById('map-loading-overlay');
+    const subEl   = document.getElementById('map-loading-sub');
+    if (overlay) overlay.classList.remove('hidden');
+
     let firstId = null;
     for (const preset of PRESET_MAPS) {
+      if (subEl) subEl.textContent = `Fetching ${preset.name}…`;
       try {
         const record = await MapRegistry.addFromUrl(preset.url, preset.name);
         // Use ACTUAL image dimensions (may differ from 1024×1024)
@@ -342,7 +347,11 @@ window.App = (() => {
           img_h:    imgH,
         });
         MapRegistry.setCalibration(record.id, cal);
-        if (!firstId) firstId = record.id;
+        if (!firstId) {
+          firstId = record.id;
+          // Hide overlay as soon as first map is ready
+          if (overlay) overlay.classList.add('hidden');
+        }
         console.log(`[App] ✓ Map "${preset.name}" loaded: ${imgW}×${imgH}px, scale_x=${(preset.v1scale/imgW).toFixed(4)}, origin=(${preset.origin_x},${preset.origin_z})`);
       } catch (e) {
         console.error(`[App] ✗ Could not preload "${preset.name}":`, e.message);
@@ -352,8 +361,34 @@ window.App = (() => {
       setActiveMap(firstId);
       console.log('[App] Auto-selected first preset map:', firstId);
     }
-    if (!firstId && mapListEl && !MapRegistry.getAll().length) {
-      mapListEl.innerHTML = '<p class="empty-hint" style="color:var(--warning)"><i class="ti ti-alert-triangle"></i> Preset maps could not load — requires HTTP server (localhost:8080). Upload maps manually.</p>';
+    if (!firstId) {
+      // All maps failed — show retry UI in overlay
+      if (overlay) {
+        const card = overlay.querySelector('.map-loading-card');
+        if (card) {
+          card.innerHTML = `
+            <div class="map-loading-spinner" style="color:var(--warning)"><i class="ti ti-alert-triangle"></i></div>
+            <div class="map-loading-text">Maps failed to load</div>
+            <div class="map-loading-sub">Requires a local HTTP server on port 8080, or upload a map manually.</div>
+            <div style="display:flex;gap:8px;margin-top:12px;justify-content:center;flex-wrap:wrap">
+              <button class="btn btn-sm btn-secondary" id="map-retry-btn"><i class="ti ti-refresh"></i> Retry</button>
+              <button class="btn btn-sm btn-ghost" id="map-dismiss-btn">Dismiss</button>
+            </div>`;
+          document.getElementById('map-retry-btn')?.addEventListener('click', () => {
+            card.innerHTML = `
+              <div class="map-loading-spinner"><i class="ti ti-loader-2 spin"></i></div>
+              <div class="map-loading-text">Loading map…</div>
+              <div class="map-loading-sub" id="map-loading-sub">Fetching preset maps from server</div>`;
+            _preloadDefaultMaps();
+          });
+          document.getElementById('map-dismiss-btn')?.addEventListener('click', () => {
+            overlay.classList.add('hidden');
+          });
+        }
+      }
+      if (mapListEl && !MapRegistry.getAll().length) {
+        mapListEl.innerHTML = '<p class="empty-hint" style="color:var(--warning)"><i class="ti ti-alert-triangle"></i> Preset maps could not load — requires HTTP server (localhost:8080). Upload maps manually.</p>';
+      }
     }
   }
 

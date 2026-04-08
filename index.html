@@ -79,6 +79,15 @@
     <div id="canvas-panel">
       <canvas id="minimap-canvas"></canvas>
 
+      <!-- Map preload overlay — shown while preset maps are fetching -->
+      <div id="map-loading-overlay" class="hidden">
+        <div class="map-loading-card">
+          <div class="map-loading-spinner"><i class="ti ti-loader-2 spin"></i></div>
+          <div class="map-loading-text">Loading map…</div>
+          <div class="map-loading-sub" id="map-loading-sub">Fetching preset maps from server</div>
+        </div>
+      </div>
+
       <!-- Floating Playback Dock -->
       <div id="playback-bar">
         <div class="playback-controls">
