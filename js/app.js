@@ -347,11 +347,7 @@ window.App = (() => {
           img_h:    imgH,
         });
         MapRegistry.setCalibration(record.id, cal);
-        if (!firstId) {
-          firstId = record.id;
-          // Hide overlay as soon as first map is ready
-          if (overlay) overlay.classList.add('hidden');
-        }
+        if (!firstId) firstId = record.id;
         console.log(`[App] ✓ Map "${preset.name}" loaded: ${imgW}×${imgH}px, scale_x=${(preset.v1scale/imgW).toFixed(4)}, origin=(${preset.origin_x},${preset.origin_z})`);
       } catch (e) {
         console.error(`[App] ✗ Could not preload "${preset.name}":`, e.message);
@@ -360,6 +356,10 @@ window.App = (() => {
     if (firstId && !state.activeMapId) {
       setActiveMap(firstId);
       console.log('[App] Auto-selected first preset map:', firstId);
+      // Wait for the map to actually paint before hiding overlay
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (overlay) overlay.classList.add('hidden');
+      }));
     }
     if (!firstId) {
       // All maps failed — show retry UI in overlay
