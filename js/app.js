@@ -201,7 +201,7 @@ window.App = (() => {
     }
 
     const pb     = Playback.getState();
-    const tsUpTo = pb.playing ? pb.currentTs : Infinity;
+    const tsUpTo = (pb.status === 'playing' || pb.status === 'paused') ? pb.currentTs : Infinity;
     Renderer.redrawPrecomputed(_getPrecomputed(ds, map), state.layers, tsUpTo, state.settings);
   }
 
@@ -226,7 +226,7 @@ window.App = (() => {
     const imgW = map.width  || 1024;
     const imgH = map.height || 1024;
     const pb   = Playback.getState();
-    const tsUpTo = pb.playing ? pb.currentTs : Infinity;
+    const tsUpTo = (pb.status === 'playing' || pb.status === 'paused') ? pb.currentTs : Infinity;
 
     const withPx = heatEvents.map(ev => {
       const { px, py } = Calibration.worldToPixel(ev.x, ev.y, cal);
@@ -1364,10 +1364,34 @@ window.App = (() => {
 
     document.getElementById('btn-apply-viz-filters')?.addEventListener('click', _applyVizFilters);
 
-    // Session Filter: clear only session selection
+    // Session dropdown toggle
+    const _sdTrigger = document.getElementById('session-dropdown-trigger');
+    const _sdPanel   = document.getElementById('session-dropdown-panel');
+    _sdTrigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = _sdPanel.classList.toggle('open');
+      _sdTrigger.classList.toggle('open', open);
+    });
+    document.addEventListener('click', (e) => {
+      if (!document.getElementById('session-dropdown')?.contains(e.target)) {
+        _sdPanel?.classList.remove('open');
+        _sdTrigger?.classList.remove('open');
+      }
+    });
+    // Select All checkbox
+    document.getElementById('session-select-all')?.addEventListener('change', (e) => {
+      document.querySelectorAll('#session-dropdown-list input[type="checkbox"]')
+        .forEach(cb => { cb.checked = e.target.checked; });
+      _updateSessionDropdownLabel();
+    });
+
+    // Session Filter: clear = select all
     document.getElementById('btn-clear-session-filter')?.addEventListener('click', () => {
-      const sel = document.getElementById('filter-session-select');
-      if (sel) Array.from(sel.options).forEach(o => o.selected = false);
+      document.querySelectorAll('#session-dropdown-list input[type="checkbox"]')
+        .forEach(cb => { cb.checked = true; });
+      const allCb = document.getElementById('session-select-all');
+      if (allCb) allCb.checked = true;
+      _updateSessionDropdownLabel();
       Filters.setSessions([]);
       scheduleRender();
     });
@@ -1422,9 +1446,11 @@ window.App = (() => {
     const toMs   = _readDateInput('filter-date-to');
     Filters.setDateRange(fromMs, toMs);
 
-    // Sessions (from whatever is currently shown in the list)
-    const sel      = document.getElementById('filter-session-select');
-    const selected = sel ? Array.from(sel.selectedOptions).map(o => o.value) : [];
+    // Sessions — empty array = all sessions (no filter)
+    const allCbs   = document.querySelectorAll('#session-dropdown-list input[type="checkbox"]');
+    const allCheck = document.getElementById('session-select-all');
+    const allSelected = allCheck?.checked || Array.from(allCbs).every(cb => cb.checked);
+    const selected = allSelected ? [] : Array.from(allCbs).filter(cb => cb.checked).map(cb => cb.value);
     Filters.setSessions(selected);
 
     // Map IDs from custom dropdown
@@ -1612,11 +1638,47 @@ window.App = (() => {
     }
   }
   function _populateSessionSelector(sessionIds) {
-    const sel = document.getElementById('filter-session-select');
-    if (!sel) return;
-    sel.innerHTML = sessionIds.length === 0
-      ? '<option disabled>— no sessions —</option>'
-      : sessionIds.map((id, i) => `<option value="${id}">Session ${i + 1}: ${id.slice(0, 8)}…</option>`).join('');
+    const list = document.getElementById('session-dropdown-list');
+    const allCb = document.getElementById('session-select-all');
+    if (!list) return;
+    if (sessionIds.length === 0) {
+      list.innerHTML = '<span style="color:var(--text-4);font-size:11px;padding:6px 8px;display:block">— no sessions —</span>';
+      if (allCb) allCb.checked = true;
+      _updateSessionDropdownLabel();
+      return;
+    }
+    list.innerHTML = sessionIds.map((id, i) =>
+      `<label class="session-dropdown-item">
+        <input type="checkbox" value="${id}" checked>
+        <span>Session ${i + 1}: ${id.slice(0, 8)}…</span>
+      </label>`
+    ).join('');
+    if (allCb) allCb.checked = true;
+    // Re-attach per-item change listeners
+    list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', _onSessionItemChange);
+    });
+    _updateSessionDropdownLabel();
+  }
+
+  function _onSessionItemChange() {
+    const allCbs = document.querySelectorAll('#session-dropdown-list input[type="checkbox"]');
+    const allCb  = document.getElementById('session-select-all');
+    if (allCb) allCb.checked = Array.from(allCbs).every(cb => cb.checked);
+    _updateSessionDropdownLabel();
+  }
+
+  function _updateSessionDropdownLabel() {
+    const label  = document.getElementById('session-dropdown-label');
+    const allCbs = document.querySelectorAll('#session-dropdown-list input[type="checkbox"]');
+    const allCb  = document.getElementById('session-select-all');
+    if (!label) return;
+    const total    = allCbs.length;
+    const checked  = Array.from(allCbs).filter(cb => cb.checked).length;
+    if (total === 0)           label.textContent = 'No sessions';
+    else if (checked === total || allCb?.checked) label.textContent = 'All sessions';
+    else if (checked === 0)    label.textContent = 'None selected';
+    else                       label.textContent = `${checked} of ${total} selected`;
   }
   function _populateEventTypeFilter(eventTypes) {
     const container = document.getElementById('event-type-filter-group');

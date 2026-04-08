@@ -328,16 +328,28 @@
 
             <div class="card">
               <div class="card-section-title">Session Filter</div>
-              <select id="filter-session-select" class="filter-select" multiple size="4">
-                <option disabled>— no sessions —</option>
-              </select>
-              <div style="color:var(--text-4);font-size:10px;margin-top:4px">Hold Ctrl/Cmd to select multiple</div>
+              <div class="session-dropdown" id="session-dropdown">
+                <button class="session-dropdown-trigger" id="session-dropdown-trigger" type="button">
+                  <span id="session-dropdown-label">All sessions</span>
+                  <i class="ti ti-chevron-down" id="session-dropdown-chevron"></i>
+                </button>
+                <div class="session-dropdown-panel" id="session-dropdown-panel">
+                  <label class="session-dropdown-item session-select-all">
+                    <input type="checkbox" id="session-select-all" checked>
+                    <span>Select All</span>
+                  </label>
+                  <div class="session-dropdown-divider"></div>
+                  <div id="session-dropdown-list">
+                    <span style="color:var(--text-4);font-size:11px;padding:6px 8px;display:block">— no sessions —</span>
+                  </div>
+                </div>
+              </div>
               <div style="display:flex;gap:8px;margin-top:10px">
                 <button id="btn-apply-viz-filters" class="btn btn-primary" style="flex:1">
                   <i class="ti ti-check"></i> Apply
                 </button>
                 <button id="btn-clear-session-filter" class="btn btn-secondary">
-                  <i class="ti ti-x"></i> Clear
+                  <i class="ti ti-refresh"></i> Clear
                 </button>
               </div>
             </div>

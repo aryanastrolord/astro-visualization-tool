@@ -9,7 +9,8 @@ window.EventRules = (() => {
   const _DEFAULTS = [
     { match: ['botposition'],                          color: '#f59e0b', modes: ['path'] },
     { match: ['position', 'move', 'walk', 'run', 'loc', 'coord'], color: '#06b6d4', modes: ['path'] },
-    { match: ['botkill', 'botkilled'],                 color: '#f97316', modes: ['point'] },
+    { match: ['botkilled'],                            color: '#ef4444', modes: ['point'], label: 'BK' },
+    { match: ['botkill'],                              color: '#f97316', modes: ['point'], label: 'BK' },
     { match: ['killedbystorm', 'storm'],               color: '#3b82f6', modes: ['point'] },
     { match: ['kill'],                                 color: '#ef4444', modes: ['point'] },
     { match: ['killed', 'death', 'die', 'dead'],       color: '#991b1b', modes: ['point'] },
@@ -24,14 +25,14 @@ window.EventRules = (() => {
     const lower = event_type.toLowerCase().replace(/[^a-z]/g, '');
     for (const d of _DEFAULTS) {
       if (d.match.some(m => lower.includes(m))) {
-        return _makeRule(event_type, d.color, [...d.modes]);
+        return _makeRule(event_type, d.color, [...d.modes], d.label || null);
       }
     }
     return _makeRule(event_type, '#6b7280', ['point']);
   }
 
-  function _makeRule(event_type, color, render_modes) {
-    return { event_type, render_modes, color, icon: null, label: null, line_width: 2, visible: true };
+  function _makeRule(event_type, color, render_modes, label = null) {
+    return { event_type, render_modes, color, icon: null, label, line_width: 2, visible: true };
   }
 
   // ── Public API ────────────────────────────────────────────

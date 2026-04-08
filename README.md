@@ -2,6 +2,10 @@
 
 User can upload game data (CSV / Parquet), pick a map, and see all events on it. He can play the match like a replay, move forward or back, and check any moment. He can filter by player or event type, and switch between paths, points, or heatmap. Everything runs in the browser only, with no upload or backend.
 
+## 🚀 Live Demo
+ 
+**Try it now:** [https://astro-visualization-tool.aryanastrolord.workers.dev/](https://astro-visualization-tool.aryanastrolord.workers.dev/)
+
 ## Tech Stack
 
 | Layer | Technology | Why |
@@ -172,11 +176,4 @@ Playback
 
 Our data is clean — But the normalization layer supports any game engine that sends timestamps, events, and coordinates — whether as milliseconds, Unix time, ISO dates, or anything else. Same code works for Nakama, Unreal, custom servers, or mobile APIs.
 
-## Future Ideas
 
-- Export video of playback
-- Real-time stream support
-- Custom heatmap gradients
-- AI-powered event detection
-- Multi-map comparison
-- Cloud save/share views
