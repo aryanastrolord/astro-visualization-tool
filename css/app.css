@@ -98,7 +98,7 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: #1a1a2e;
+  background: #000000;
 }
 
 /* ── Top Bar — floating overlay ────────────────────────────── */
@@ -262,11 +262,48 @@ body {
   inset: 0;
 }
 
+/* ── Mobile warning — only visible on phones (< 768px) ────── */
+#mobile-warning {
+  display: none;
+}
+@media (max-width: 767px) {
+  #mobile-warning {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #000;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .mobile-warning-card {
+    text-align: center;
+    max-width: 320px;
+  }
+  .mobile-warning-icon {
+    font-size: 48px;
+    color: var(--accent, #2563eb);
+    margin-bottom: 16px;
+  }
+  .mobile-warning-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 10px;
+  }
+  .mobile-warning-body {
+    font-size: 14px;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.6;
+  }
+}
+
 /* ── Canvas Panel — fills entire viewport ──────────────────── */
 #canvas-panel {
   position: absolute;
   inset: 0;
-  background: #1a1a2e;
+  background: #000000;
   overflow: hidden;
 }
 
@@ -281,7 +318,7 @@ body {
   z-index: 10;
   opacity: 0;
   transition: opacity 0.3s ease;
-  background: #1a1a2e;
+  background: #000000;
 }
 #map-loading-overlay:not(.hidden) {
   opacity: 1;
