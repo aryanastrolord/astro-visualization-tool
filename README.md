@@ -8,16 +8,25 @@ User can upload game data (CSV / Parquet), pick a map, and see all events on it.
 
 ## Tech Stack
 
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| Frontend | Vanilla JavaScript (no framework) | Fast, no build step, runs in browser |
-| Database | DuckDB-WASM | Parse CSV/Parquet files in browser (no server needed) |
-| Rendering | Canvas 2D | Smooth playback at 60fps, handles 1M+ events |
-| Animation | requestAnimationFrame | Browser native, smooth timeline scrubbing |
-| Math | Custom calibration functions | Convert game coordinates to screen pixels |
-| Styling | CSS (custom design tokens) | No framework, semantic colors |
+| Layer       | Technology                     |
+|------------|--------------------------------|
+| Frontend    | Vanilla JavaScript (no framework) |
+| Database    | DuckDB-WASM                    |
+| Rendering   | Canvas 2D                      |
+| Animation   | requestAnimationFrame          |
+| Math        | Custom calibration functions   |
+| Styling     | CSS (custom design tokens)     |
 
-**Key Decision:** Everything runs in the browser. No backend server. Files never leave your computer.
+---
+
+## Key Decision
+
+Wanted to quickly build something without heavy setup or dependencies.
+
+Everything runs directly in the browser:
+- No backend  
+- No deployment complexity  
+- Fast and private (data stays local)
 
 ## Setup
 
